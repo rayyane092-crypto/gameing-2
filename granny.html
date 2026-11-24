@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Granny</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#000;font-family:'Courier New',monospace;color:#fff;user-select:none}
+canvas{display:block}
+
+/* شاشة البداية */
+#startScreen{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at center,#1a0505 0%,#000 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;overflow-y:auto}
+#startScreen h1{font-size:64px;color:#a00;letter-spacing:14px;text-shadow:0 0 30px #f00,0 0 60px #a00;margin-bottom:15px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+#startScreen p{color:#888;font-size:13px;max-width:600px;line-height:1.7;margin:4px}
+#diffGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;max-width:800px;width:100%;margin:18px 0}
+.diffBtn{background:linear-gradient(180deg,#1a0a0a,#0d0505);border:2px solid #3a1a1a;color:#bbb;padding:12px 8px;cursor:pointer;font-family:inherit;transition:all .2s;border-radius:4px;text-align:center}
+.diffBtn:hover{border-color:#a00;color:#fff;transform:translateY(-2px)}
+.diffBtn.active{border-color:#f00;background:linear-gradient(180deg,#2a0808,#1a0505);color:#fff;box-shadow:0 0 20px rgba(255,0,0,.5)}
+.diffBtn .dn{font-size:15px;font-weight:bold;display:block;margin-bottom:3px;letter-spacing:1px}
+.diffBtn .dd{font-size:9px;color:#666;line-height:1.3}
+.diffBtn.active .dd{color:#caa}
+#startHint{margin-top:14px;color:#f00;font-size:16px;animation:blink 1.2s infinite;cursor:pointer;letter-spacing:2px;padding:8px 20px;border:1px solid #a00;border-radius:4px}
+@keyframes blink{50%{opacity:.3}}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;display:none}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,.5);font-size:16px}
+#dayPanel{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.85);padding:8px 14px;border-left:3px solid #a00;font-size:12px;color:#eee;border-radius:0 4px 4px 0}
+#dayPanel .dayNum{font-size:18px;color:#f44;font-weight:bold;letter-spacing:2px;display:block}
+#dayPanel .diffTag{font-size:10px;color:#888;margin-top:2px}
+#inventory{position:absolute;bottom:12px;left:12px;background:rgba(0,0,0,.85);padding:8px 14px;border-left:3px solid #cc0;font-size:11px;color:#ddd;min-width:180px;border-radius:0 4px 4px 0}
+#inventory .title{color:#aaa;font-size:10px;border-bottom:1px solid #333;padding-bottom:4px;margin-bottom:4px}
+#inventory .item{padding:2px 0;color:#4a4a4a}
+#inventory .item.got{color:#ffd700}
+#staminaWrap{position:absolute;bottom:12px;right:12px;width:180px}
+#staminaWrap .label{font-size:10px;color:#777;margin-bottom:3px}
+#staminaBar{height:6px;background:rgba(0,0,0,.6);border:1px solid #333;border-radius:3px;overflow:hidden}
+#staminaFill{height:100%;background:linear-gradient(90deg,#2a5,#4c8);width:100%}
+#prompt{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);padding:8px 20px;border:1px solid #555;font-size:13px;color:#fff;display:none;border-radius:3px;white-space:nowrap}
+#msg{position:absolute;top:12%;left:50%;transform:translateX(-50%);font-size:18px;color:#f33;text-shadow:0 0 14px #f00;opacity:0;transition:opacity .4s;font-weight:bold;text-align:center;pointer-events:none}
+#bloodOverlay{position:fixed;inset:0;pointer-events:none;z-index:15;background:radial-gradient(circle,transparent 35%,rgba(120,0,0,.9) 100%);opacity:0;transition:opacity .4s}
+#jumpscare{position:fixed;inset:0;z-index:200;pointer-events:none;display:none;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(100,0,0,.9),#000);font-size:250px;color:#a00;animation:shake .05s infinite}
+@keyframes shake{0%{transform:translate(0,0)}25%{transform:translate(-8px,4px)}50%{transform:translate(6px,-6px)}75%{transform:translate(-4px,-3px)}100%{transform:translate(5px,5px)}}
+
+/* النوافذ المنبثقة */
+.popup{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;padding:20px}
+#notePopup .note{background:linear-gradient(135deg,#d8c8a0,#c4b488);padding:32px 40px;max-width:480px;color:#2a1a0a;border:3px solid #4a3020;box-shadow:0 0 60px rgba(0,0,0,.9);transform:rotate(-1deg)}
+#notePopup h2{font-size:20px;margin-bottom:14px;border-bottom:2px solid #4a3020;padding-bottom:8px}
+#notePopup p{font-size:14px;line-height:1.7;margin:8px 0}
+#notePopup .code{font-size:40px;color:#a00;text-align:center;letter-spacing:10px;font-weight:bold;margin:12px 0;padding:10px;border:2px dashed #a00}
+#notePopup button{margin-top:12px;padding:8px 24px;background:#4a3020;color:#d8c8a0;border:none;font-family:inherit;cursor:pointer;font-size:13px}
+#safePopup .safeBox{background:linear-gradient(135deg,#333,#1a1a1a);padding:28px;border:4px solid #666;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.9)}
+#safePopup h2{font-size:18px;color:#ccc;text-align:center;margin-bottom:16px;letter-spacing:3px}
+#safePopup .display{background:#0a1a0a;color:#0f0;font-size:30px;text-align:center;padding:10px;margin-bottom:14px;letter-spacing:10px;border:2px inset #444;min-width:220px;font-family:monospace}
+#safePopup .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+#safePopup .keypad button{padding:12px;font-size:16px;background:#3a3a3a;color:#fff;border:2px solid #555;cursor:pointer;font-family:monospace;font-weight:bold}
+#safePopup .keypad button:hover{background:#555}
+#safePopup .close{margin-top:12px;padding:8px;background:#a00;color:#fff;border:none;font-family:inherit;cursor:pointer;font-size:13px;width:100%}
+
+/* شاشة النهاية */
+#endScreen{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at center,#0a0505 0%,#000 70%);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+#endScreen h1{font-size:48px;margin-bottom:12px}
+#endScreen.win h1{color:#0a0;text-shadow:0 0 30px #0f0}
+#endScreen.lose h1{color:#a00;text-shadow:0 0 30px #f00}
+#endScreen p{color:#999;font-size:14px;margin-bottom:10px}
+#restartBtn{padding:12px 32px;font-size:15px;background:#a00;color:#fff;border:none;cursor:pointer;font-family:inherit;letter-spacing:2px;margin-top:12px}
+#restartBtn:hover{background:#c00}
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <h1>GRANNY</h1>
+  <p style="color:#c00;font-size:14px">المنزل الملعون — 5 أيام للهروب</p>
+  <p>ابحث عن المفاتيح، افتح الخزنة، اهرب من الباب الشرقي</p>
+  <div id="diffGrid">
+    <button class="diffBtn" data-d="practice"><span class="dn">PRACTICE</span><span class="dd">بدون جراني</span></button>
+    <button class="diffBtn" data-d="easy"><span class="dn">EASY</span><span class="dd">جراني بطيئة</span></button>
+    <button class="diffBtn active" data-d="normal"><span class="dn">NORMAL</span><span class="dd">سرعة عادية</span></button>
+    <button class="diffBtn" data-d="hard"><span class="dn">HARD</span><span class="dd">جراني أسرع</span></button>
+    <button class="diffBtn" data-d="extreme"><span class="dn">EXTREME</span><span class="dd">جراني قاتلة</span></button>
+  </div>
+  <p style="color:#555;font-size:11px">WASD حركة · ماوس نظر · Shift جري · E تفاعل · F مصباح · C انحناء<br>كود الخزنة: اقرأ الملاحظة في المكتبة</p>
+  <div id="startHint">اضغط للبدء</div>
+</div>
+
+<div id="hud">
+  <div id="crosshair">+</div>
+  <div id="dayPanel"><span class="dayNum" id="dayText">DAY 1</span><div class="diffTag" id="diffTag">NORMAL</div></div>
+  <div id="inventory">
+    <div class="title">🎒 الجرد</div>
+    <div class="item" id="invPadlockKey">🔑 مفتاح القفل</div>
+    <div class="item" id="invPadlockCode">📄 كود القفل</div>
+    <div class="item" id="invHammer">🔨 المطرقة</div>
+    <div class="item" id="invPliers">✂️ الكماشة</div>
+    <div class="item" id="invMasterKey">🗝️ المفتاح الرئيسي</div>
+    <div class="item" id="invBattery">🔋 البطارية</div>
+    <div class="item" id="invScrewdriver">🪛 المفك</div>
+    <div class="item" id="invSafeKey">🔐 مفتاح الخزنة</div>
+  </div>
+  <div id="staminaWrap"><div class="label">الطاقة</div><div id="staminaBar"><div id="staminaFill"></div></div></div>
+  <div id="prompt"></div>
+  <div id="msg"></div>
+</div>
+
+<div id="bloodOverlay"></div>
+<div id="jumpscare">👵</div>
+
+<div id="safePopup" class="popup">
+  <div class="safeBox">
+    <h2>🔐 الخزنة</h2>
+    <div class="display" id="safeDisplay">_ _ _</div>
+    <div class="keypad">
+      <button onclick="safePress('1')">1</button><button onclick="safePress('2')">2</button><button onclick="safePress('3')">3</button>
+      <button onclick="safePress('4')">4</button><button onclick="safePress('5')">5</button><button onclick="safePress('6')">6</button>
+      <button onclick="safePress('7')">7</button><button onclick="safePress('8')">8</button><button onclick="safePress('9')">9</button>
+      <button onclick="safeClear()" style="background:#555">✕</button><button onclick="safePress('0')">0</button><button onclick="safeClose()" style="background:#a00">✕</button>
+    </div>
+    <button class="close" onclick="safeClose()">إغلاق</button>
+  </div>
+</div>
+
+<div id="notePopup" class="popup">
+  <div class="note">
+    <h2>📝 ملاحظة جراني</h2>
+    <p id="noteText"></p>
+    <div class="code" id="noteCode"></div>
+    <p id="noteSign" style="color:#a00;font-style:italic;text-align:center"></p>
+    <button onclick="closeNote()">إغلاق</button>
+  </div>
+</div>
+
+<div id="endScreen">
+  <h1 id="endTitle"></h1>
+  <p id="endSubtitle"></p>
+  <button id="restartBtn">العب مرة أخرى</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const DIFFS = {
+  practice: { name:'PRACTICE', speed:0, chase:0, hearing:0, vision:0, locks:['plank','padlock'] },
+  easy:     { name:'EASY', speed:1.2, chase:2.2, hearing:7, vision:8, locks:['plank','padlock'] },
+  normal:   { name:'NORMAL', speed:1.5, chase:3.0, hearing:10, vision:12, locks:['plank','padlock','numeric'] },
+  hard:     { name:'HARD', speed:1.8, chase:3.6, hearing:14, vision:15, locks:['plank','padlock','numeric','battery'] },
+  extreme:  { name:'EXTREME', speed:2.2, chase:4.4, hearing:20, vision:18, locks:['plank','padlock','numeric','battery','switch'] }
+};
+let DIFF = DIFFS.normal;
+let gameState = 'menu';
+let currentDay = 1;
+let maxDays = 5;
+let noteOpen = false, safeOpen = false, safeInput = '';
+let pointerLocked = false;
+
+// ═══════════════════════════════════════════════════════════════
+//  THREE.JS
+// ═══════════════════════════════════════════════════════════════
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050404);
+scene.fog = new THREE.FogExp2(0x050404, 0.018);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 80);
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.6;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  TEXTURES
+// ═══════════════════════════════════════════════════════════════
+function makeTex(w,h,draw){
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const wallpaperTex = makeTex(512,512,(ctx,w,h)=>{
+  ctx.fillStyle = '#4a3a2e'; ctx.fillRect(0,0,w,h);
+  for(let i=0;i<15000;i++){
+    ctx.fillStyle = `rgba(0,0,0,${Math.random()*.3})`;
+    ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2);
+  }
+});
+wallpaperTex.repeat.set(4,1);
+
+const floorTex = makeTex(512,512,(ctx,w,h)=>{
+  ctx.fillStyle = '#2e2418'; ctx.fillRect(0,0,w,h);
+  for(let i=0;i<8000;i++){
+    ctx.fillStyle = `rgba(0,0,0,${Math.random()*.4})`;
+    ctx.fillRect(Math.random()*w, Math.random()*h, 3, 3);
+  }
+});
+floorTex.repeat.set(7,7);
+
+const woodTex = makeTex(256,256,(ctx,w,h)=>{
+  ctx.fillStyle = '#4a3020'; ctx.fillRect(0,0,w,h);
+  for(let i=0;i<20;i++){
+    ctx.strokeStyle = 'rgba(20,10,4,.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.random()*w, 0);
+    for(let y=0;y<=h;y+=10) ctx.lineTo(Math.sin(y*.03+i)*8 + i*3, y);
+    ctx.stroke();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  MATERIALS
+// ═══════════════════════════════════════════════════════════════
+const wallMat  = new THREE.MeshStandardMaterial({map:wallpaperTex, roughness:.9, color:0xc8b090});
+const floorMat = new THREE.MeshStandardMaterial({map:floorTex, roughness:.9});
+const ceilMat  = new THREE.MeshStandardMaterial({color:0x302620, roughness:1});
+const woodMat  = new THREE.MeshStandardMaterial({map:woodTex, roughness:.85});
+const darkWood = new THREE.MeshStandardMaterial({map:woodTex, color:0x6a5540, roughness:.9});
+const metalMat = new THREE.MeshStandardMaterial({color:0x555555, metalness:.9, roughness:.3});
+
+// ═══════════════════════════════════════════════════════════════
+//  HOUSE
+// ═══════════════════════════════════════════════════════════════
+const colliders = [];
+const WH = 3.0, WT = 0.3;
+
+function addWall(cx, cz, w, d, h=WH, y=0, mat=wallMat, collide=true){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(cx, y+h/2, cz);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  if(collide) colliders.push({minX:cx-w/2, maxX:cx+w/2, minZ:cz-d/2, maxZ:cz+d/2});
+  return m;
+}
+
+function buildWall(axis, fixed, start, end, doors, mat){
+  mat = mat || wallMat;
+  const doorRanges = doors.map(d => [Math.min(d[0],d[1]), Math.max(d[0],d[1])]).sort((a,b)=>a[0]-b[0]);
+  let cursor = start;
+  const segments = [];
+  for (const [ds, de] of doorRanges){
+    const dsC = Math.max(ds, start);
+    const deC = Math.min(de, end);
+    if (dsC > cursor) segments.push([cursor, dsC]);
+    cursor = Math.max(cursor, deC);
+  }
+  if (cursor < end) segments.push([cursor, end]);
+  for (const [s, e] of segments){
+    if (e - s < 0.1) continue;
+    const len = e - s;
+    const mid = (s + e) / 2;
+    if (axis === 'x') addWall(fixed, mid, WT, len, WH, 0, mat);
+    else              addWall(mid, fixed, len, WT, WH, 0, mat);
+  }
+}
+
+const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(28.6, 28.6), floorMat);
+floorMesh.rotation.x = -Math.PI/2;
+floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+
+const ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(28.6, 28.6), ceilMat);
+ceilMesh.rotation.x = Math.PI/2;
+ceilMesh.position.y = WH;
+ceilMesh.receiveShadow = true;
+scene.add(ceilMesh);
+
+// Outer walls
+addWall(0, -14.15, 28.6, WT);
+addWall(0, 14.15, 28.6, WT);
+addWall(-14.15, 0, WT, 28.6);
+addWall(14.15, -7.375, WT, 13.25);
+addWall(14.15, 7.375, WT, 13.25);
+addWall(14.15, 0, WT, 1.5, WH-2.3, 2.3, wallMat, false);
+
+// Inner walls with doors
+buildWall('x', -7, -14, 14, [[-10.75,-9.25],[-0.75,0.75],[9.25,10.75]]);
+buildWall('x', 7, -14, 14, [[-10.75,-9.25],[-0.75,0.75],[9.25,10.75]]);
+buildWall('z', -7, -14, 14, [[-10.75,-9.25],[-0.75,0.75],[9.25,10.75]]);
+buildWall('z', 7, -14, 14, [[-10.75,-9.25],[-0.75,0.75],[9.25,10.75]]);
+
+// ═══════════════════════════════════════════════════════════════
+//  FURNITURE
+// ═══════════════════════════════════════════════════════════════
+function makeTable(x,z,w=1.3,d=.9){
+  const g = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.BoxGeometry(w,.08,d), darkWood);
+  top.position.y = .75; top.castShadow = true; top.receiveShadow = true;
+  g.add(top);
+  for (const [dx,dz] of [[-w/2+.1,-d/2+.1],[w/2-.1,-d/2+.1],[-w/2+.1,d/2-.1],[w/2-.1,d/2-.1]]){
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(.08,.75,.08), darkWood);
+    leg.position.set(dx,.375,dz); leg.castShadow = true; g.add(leg);
+  }
+  g.position.set(x,0,z); scene.add(g);
+  colliders.push({minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2});
+}
+function makeBed(x,z){
+  const g = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(2,.25,1.4), darkWood);
+  frame.position.y = .35; frame.castShadow = true; frame.receiveShadow = true;
+  g.add(frame);
+  const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.9,.2,1.3),
+    new THREE.MeshStandardMaterial({color:0x887766, roughness:1}));
+  mattress.position.y = .575; mattress.castShadow = true;
+  g.add(mattress);
+  const pillow = new THREE.Mesh(new THREE.BoxGeometry(.5,.15,.3),
+    new THREE.MeshStandardMaterial({color:0xbbaa99, roughness:1}));
+  pillow.position.set(-.65,.74,0); pillow.castShadow = true;
+  g.add(pillow);
+  g.position.set(x,0,z); scene.add(g);
+  colliders.push({minX:x-1, maxX:x+1, minZ:z-.7, maxZ:z+.7});
+}
+function makeBarrel(x,z,s=.35){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(s,s,s*2.4,12), woodMat);
+  body.position.y = s*1.2; body.castShadow = true;
+  g.add(body);
+  g.position.set(x,0,z); scene.add(g);
+  colliders.push({minX:x-s, maxX:x+s, minZ:z-s, maxZ:z+s});
+}
+function makeRug(x,z,w,d,color){
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(w,d),
+    new THREE.MeshStandardMaterial({color, roughness:1}));
+  rug.rotation.x = -Math.PI/2;
+  rug.position.set(x,.01,z);
+  rug.receiveShadow = true;
+  scene.add(rug);
+}
+function makeBookshelf(x,z,rot=0){
+  const g = new THREE.Group();
+  const back = new THREE.Mesh(new THREE.BoxGeometry(2,2.4,.4), darkWood);
+  back.position.y = 1.2; back.castShadow = true;
+  g.add(back);
+  const bookColors = [0x5a2020,0x203a5a,0x3a5a20,0x5a4a20,0x4a205a];
+  for (let i = 0; i < 15; i++){
+    const bm = new THREE.MeshStandardMaterial({color:bookColors[i%5], roughness:.8});
+    const book = new THREE.Mesh(new THREE.BoxGeometry(.1,.35,.28), bm);
+    book.position.set(-.85 + (i%5)*.35, .3 + Math.floor(i/5)*.7, .1);
+    g.add(book);
+  }
+  g.position.set(x,0,z); g.rotation.y = rot;
+  scene.add(g);
+  colliders.push({minX:x-1, maxX:x+1, minZ:z-.25, maxZ:z+.25});
+}
+
+makeRug(0, 0, 5, 5, 0x4a1818);
+makeBookshelf(-3, -13.4);
+makeBookshelf(3, -13.4);
+makeTable(0, -10, 2, 1);
+makeRug(0, -10, 4, 3, 0x2a3a2a);
+makeBed(-11, -11);
+makeTable(-8, -13, 1.2, .7);
+makeTable(11, -10, 1.5, .9);
+makeBarrel(-10, -5);
+makeBarrel(-10, -3, .4);
+makeBarrel(-11, 3);
+makeBarrel(-12, 5, .45);
+makeTable(10, -3, 1.6, .9);
+makeBookshelf(13.4, -5, -Math.PI/2);
+makeTable(-10, 12, 1.8, 1);
+makeTable(-3, 12, 2.2, .9);
+makeTable(2, 12, 2.2, .9);
+makeTable(11, 11, 1.5, .9);
+
+// ═══════════════════════════════════════════════════════════════
+//  SAFE
+// ═══════════════════════════════════════════════════════════════
+const safeGroup = new THREE.Group();
+const safeBody = new THREE.Mesh(new THREE.BoxGeometry(.8,.8,.8),
+  new THREE.MeshStandardMaterial({color:0x333333, metalness:.8, roughness:.4}));
+safeBody.position.set(13.4, .4, 5);
+safeBody.castShadow = true; safeBody.receiveShadow = true;
+safeBody.userData.interactable = 'safe';
+safeGroup.add(safeBody);
+
+const safeDial = new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.05,16), metalMat);
+safeDial.position.set(13.4, .55, 5.41);
+safeDial.rotation.x = Math.PI/2;
+safeDial.userData.interactable = 'safe';
+safeGroup.add(safeDial);
+
+scene.add(safeGroup);
+colliders.push({minX:13, maxX:13.8, minZ:4.6, maxZ:5.4});
+
+// ═══════════════════════════════════════════════════════════════
+//  EXIT DOOR
+// ═══════════════════════════════════════════════════════════════
+const exitDoorGroup = new THREE.Group();
+const exitDoorPanel = new THREE.Mesh(
+  new THREE.BoxGeometry(.1, 2.2, 1.4),
+  new THREE.MeshStandardMaterial({map:woodTex, color:0x8a6030, roughness:.8})
+);
+exitDoorPanel.position.set(14, 1.1, 0);
+exitDoorPanel.castShadow = true; exitDoorPanel.receiveShadow = true;
+exitDoorPanel.userData.interactable = 'exit';
+exitDoorGroup.add(exitDoorPanel);
+
+const lockPlank = new THREE.Mesh(new THREE.BoxGeometry(.08,.2,1.8), woodMat);
+lockPlank.position.set(13.9, .3, 0); lockPlank.castShadow = true;
+exitDoorGroup.add(lockPlank);
+
+const lockPadlock = new THREE.Mesh(new THREE.BoxGeometry(.06,.15,.15),
+  new THREE.MeshStandardMaterial({color:0xccaa00, metalness:.9, roughness:.3}));
+lockPadlock.position.set(13.93, 1.0, .3);
+exitDoorGroup.add(lockPadlock);
+
+const lockNumeric = new THREE.Mesh(new THREE.BoxGeometry(.06,.12,.2),
+  new THREE.MeshStandardMaterial({color:0x333333, metalness:.7, roughness:.4}));
+lockNumeric.position.set(13.93, .65, -.3);
+exitDoorGroup.add(lockNumeric);
+
+const lockBattery = new THREE.Mesh(new THREE.BoxGeometry(.06,.1,.12),
+  new THREE.MeshStandardMaterial({color:0x222222, metalness:.6, roughness:.5}));
+lockBattery.position.set(13.93, 1.35, .3);
+exitDoorGroup.add(lockBattery);
+
+const lockSwitch = new THREE.Mesh(new THREE.BoxGeometry(.06,.08,.14),
+  new THREE.MeshStandardMaterial({color:0x442222, metalness:.5, roughness:.6}));
+lockSwitch.position.set(13.93, 1.35, -.3);
+exitDoorGroup.add(lockSwitch);
+
+scene.add(exitDoorGroup);
+colliders.push({minX:13.85, maxX:14.15, minZ:-.75, maxZ:.75});
+
+const exitGlow = new THREE.PointLight(0xff3333, 1.0, 5);
+exitGlow.position.set(13.5, 2.5, 0);
+scene.add(exitGlow);
+
+// ═══════════════════════════════════════════════════════════════
+//  COLLECTIBLES
+// ═══════════════════════════════════════════════════════════════
+const collectibles = [];
+
+function makeKey(x,z,color,id,y=.55){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({color, emissive:color, emissiveIntensity:.7, metalness:.9, roughness:.3});
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.09,.025,8,20), mat);
+  ring.rotation.x = Math.PI/2; g.add(ring);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.3,6), mat);
+  shaft.position.set(0,-.05,.18); shaft.rotation.x = Math.PI/2; g.add(shaft);
+  g.position.set(x,y,z);
+  g.userData = {isCollectible:true, type:'key', id, baseY:y};
+  scene.add(g);
+  const light = new THREE.PointLight(color, .9, 2.5);
+  light.position.copy(g.position); scene.add(light);
+  g.userData.light = light;
+  collectibles.push(g);
+  return g;
+}
+
+function makeNote(x,z,y,id){
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(.25,.35),
+    new THREE.MeshStandardMaterial({color:0xd8c8a0, roughness:1, emissive:0x444422, emissiveIntensity:.3, side:THREE.DoubleSide})
+  );
+  mesh.rotation.x = -Math.PI/2;
+  mesh.position.set(x,y,z);
+  mesh.userData = {isCollectible:true, type:'note', id};
+  scene.add(mesh);
+  const light = new THREE.PointLight(0xffdd88, .7, 2);
+  light.position.set(x,y+.1,z); scene.add(light);
+  mesh.userData.light = light;
+  collectibles.push(mesh);
+  return mesh;
+}
+
+function makeItem(x,z,y,id,color){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({color, metalness:.7, roughness:.4, emissive:color, emissiveIntensity:.3});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(.15,.15,.15), mat);
+  g.add(body);
+  g.position.set(x,y,z);
+  g.userData = {isCollectible:true, type:'item', id, baseY:y};
+  scene.add(g);
+  const light = new THREE.PointLight(color, .7, 2);
+  light.position.copy(g.position); scene.add(light);
+  g.userData.light = light;
+  collectibles.push(g);
+  return g;
+}
+
+makeNote(-0.5, -10, 0.85, 'padlockCode');
+makeKey(-10, 12, 0xcc8833, 'padlockKey', .85);
+makeItem(-3, 12.4, .85, 'hammer', 0x888888);
+makeItem(-11.4, -11, .85, 'pliers', 0xcc2222);
+makeItem(-10, -3, 1.05, 'safeKey', 0x66aaff);
+makeItem(12, -10, .85, 'battery', 0x33aa33);
+makeItem(2, 12.4, .85, 'screwdriver', 0xcc6600);
+
+// Master key - appears after safe is opened (positioned next to the safe)
+const masterKey = makeKey(12.6, 5, 0xffd700, 'masterKey', 1.0);
+masterKey.visible = false;
+masterKey.userData.light.visible = false;
+
+// ═══════════════════════════════════════════════════════════════
+//  LIGHTING
+// ═══════════════════════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0x4a3a2a, 1.3));
+scene.add(new THREE.HemisphereLight(0x8a7060, 0x2a1a10, .7));
+
+function addLamp(x,y,z,color,intensity,dist){
+  const l = new THREE.PointLight(color, intensity, dist, 2);
+  l.position.set(x,y,z); scene.add(l);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.09,8,8), new THREE.MeshBasicMaterial({color}));
+  bulb.position.set(x,y,z); scene.add(bulb);
+  return l;
+}
+
+const lamps = [
+  addLamp(0, 2.6, 0, 0xffaa66, 2.0, 12),
+  addLamp(0, 2.6, -10, 0xffaa66, 1.6, 10),
+  addLamp(-10.5, 2.6, -10.5, 0xff6666, 1.4, 8),
+  addLamp(10.5, 2.6, -10.5, 0x88ccff, 1.4, 8),
+  addLamp(-10.5, 2.6, 0, 0xaa88ff, 1.4, 8),
+  addLamp(10.5, 2.6, 0, 0xffcc88, 1.6, 8),
+  addLamp(-10.5, 2.6, 10.5, 0xff8844, 1.4, 8),
+  addLamp(0, 2.6, 10.5, 0x88ffaa, 1.4, 8),
+  addLamp(10.5, 2.6, 10.5, 0xff2222, 1.0, 6)
+];
+const lampBases = [2.0, 1.6, 1.4, 1.4, 1.4, 1.6, 1.4, 1.4, 1.0];
+
+const flashlight = new THREE.SpotLight(0xfff5e0, 6, 30, Math.PI/5, .5, 1.2);
+flashlight.castShadow = true;
+flashlight.shadow.mapSize.set(1024,1024);
+flashlight.shadow.camera.near = .3;
+flashlight.shadow.camera.far = 30;
+flashlight.shadow.bias = -.0008;
+scene.add(flashlight);
+scene.add(flashlight.target);
+let flashlightOn = true;
+const flashlightBase = 6;
+
+// ═══════════════════════════════════════════════════════════════
+//  GRANNY
+// ═══════════════════════════════════════════════════════════════
+const granny = new THREE.Group();
+{
+  const dress = new THREE.Mesh(new THREE.ConeGeometry(.55,1.4,14,1,true),
+    new THREE.MeshStandardMaterial({color:0x2a2030, roughness:.95}));
+  dress.position.y = .7; dress.castShadow = true; granny.add(dress);
+  
+  const gbody = new THREE.Mesh(new THREE.CylinderGeometry(.3,.38,.75,10),
+    new THREE.MeshStandardMaterial({color:0x3a2e40, roughness:.9}));
+  gbody.position.y = 1.4; gbody.castShadow = true; granny.add(gbody);
+  
+  const ghead = new THREE.Mesh(new THREE.SphereGeometry(.24,20,20),
+    new THREE.MeshStandardMaterial({color:0x9a8070, roughness:1}));
+  ghead.position.y = 1.95; ghead.scale.set(.95,1.1,.95); ghead.castShadow = true;
+  granny.add(ghead);
+  
+  const hair = new THREE.Mesh(
+    new THREE.SphereGeometry(.25,12,12,0,Math.PI*2,0,Math.PI*.55),
+    new THREE.MeshStandardMaterial({color:0x888888, roughness:1})
+  );
+  hair.position.y = 1.98; granny.add(hair);
+  
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xff2200});
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(.045,8,8), eyeMat);
+  eyeL.position.set(.09,1.97,.2); granny.add(eyeL);
+  const eyeR = eyeL.clone(); eyeR.position.x = -.09; granny.add(eyeR);
+  
+  const eyeGlow = new THREE.PointLight(0xff2200, .5, 1.2);
+  eyeGlow.position.set(0,1.97,.25); granny.add(eyeGlow);
+  granny.userData.eyeGlow = eyeGlow;
+  
+  const armMat = new THREE.MeshStandardMaterial({color:0x9a8070, roughness:1});
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(.06,.07,.75,8), armMat);
+  armL.position.set(.38,1.3,.05); armL.rotation.z = -.25; armL.castShadow = true; granny.add(armL);
+  const armR = armL.clone(); armR.position.x = -.38; armR.rotation.z = .25; granny.add(armR);
+  
+  const bat = new THREE.Mesh(new THREE.CylinderGeometry(.04,.08,1,10),
+    new THREE.MeshStandardMaterial({color:0x6a4a30, roughness:.8}));
+  bat.position.set(.42,1,.35); bat.rotation.set(.6,0,.15); bat.castShadow = true;
+  granny.add(bat);
+}
+granny.position.set(-10, 0, -10);
+scene.add(granny);
+
+const grannyState = {
+  pos: new THREE.Vector3(-10, 0, -10),
+  yaw: 0, mode: 'patrol', path: null, pathTimer: 0,
+  lastSeenPlayer: 0, lastKnownPlayerPos: null,
+  stepPhase: 0, blinkTimer: 0,
+  waypoints: [
+    new THREE.Vector3(-10,0,-10), new THREE.Vector3(-3,0,-10), new THREE.Vector3(0,0,-7),
+    new THREE.Vector3(0,0,0), new THREE.Vector3(-7,0,0), new THREE.Vector3(-10,0,0),
+    new THREE.Vector3(-7,0,7), new THREE.Vector3(-10,0,10), new THREE.Vector3(0,0,7),
+    new THREE.Vector3(0,0,10), new THREE.Vector3(0,0,0), new THREE.Vector3(7,0,0),
+    new THREE.Vector3(10,0,0), new THREE.Vector3(7,0,-7), new THREE.Vector3(10,0,-10),
+    new THREE.Vector3(0,0,-7), new THREE.Vector3(0,0,0)
+  ],
+  wpIndex: 0
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  PLAYER
+// ═══════════════════════════════════════════════════════════════
+const player = {
+  pos: new THREE.Vector3(-3, 1.7, 0),
+  yaw: -Math.PI/2, pitch: 0,
+  height: 1.7, crouchHeight: 1.05, currentHeight: 1.7,
+  radius: .3, stamina: 100, bobPhase: 0,
+  isCrouching: false, isSprinting: false
+};
+
+const inventory = {
+  padlockKey: false, padlockCode: false, hammer: false, pliers: false,
+  masterKey: false, battery: false, screwdriver: false, safeKey: false,
+  safeOpened: false,
+  plankRemoved: false, padlockRemoved: false, numericRemoved: false,
+  batteryRemoved: false, switchRemoved: false
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════════
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyE' && gameState === 'playing') tryInteract();
+  if (e.code === 'KeyF' && gameState === 'playing'){
+    flashlightOn = !flashlightOn;
+    flashlight.visible = flashlightOn;
+    showMsg(flashlightOn ? '💡 مفعّل' : '🔦 مغلق', '#aaa');
+  }
+  if (e.code === 'Escape'){
+    if (noteOpen) closeNote();
+    if (safeOpen) safeClose();
+  }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === renderer.domElement;
+});
+
+document.addEventListener('mousemove', e => {
+  if (!pointerLocked) return;
+  player.yaw -= e.movementX * .0022;
+  player.pitch -= e.movementY * .0022;
+  player.pitch = Math.max(-Math.PI/2+.01, Math.min(Math.PI/2-.01, player.pitch));
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════════════════
+let audioCtx = null;
+function initAudio(){
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = audioCtx.createOscillator();
+  osc.type='sawtooth'; osc.frequency.value=30;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type='lowpass'; filter.frequency.value=110;
+  const gain = audioCtx.createGain(); gain.gain.value=.02;
+  osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+  osc.start();
+}
+function playBeep(f=800, d=.1){
+  if (!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.frequency.value=f; o.type='square';
+  g.gain.setValueAtTime(.08,t); g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t+d);
+}
+function playPickup(){
+  if (!audioCtx) return;
+  const t=audioCtx.currentTime;
+  [880,1100,1320].forEach((f,i)=>{
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(.12,t+i*.08);
+    g.gain.exponentialRampToValueAtTime(.001,t+i*.08+.3);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t+i*.08); o.stop(t+i*.08+.35);
+  });
+}
+function playScream(){
+  if (!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(900,t);
+  o.frequency.exponentialRampToValueAtTime(180,t+1);
+  g.gain.setValueAtTime(.5,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+1.2);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t+1.2);
+}
+function playFootstep(){
+  if (!audioCtx) return;
+  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*.1,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*.018));
+  const src=audioCtx.createBufferSource(); src.buffer=buf;
+  const f=audioCtx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=380;
+  const g=audioCtx.createGain(); g.gain.value=.15;
+  src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+  src.start(audioCtx.currentTime);
+}
+function playHeartbeat(){
+  if (!audioCtx) return;
+  const t=audioCtx.currentTime;
+  for(let i=0;i<2;i++){
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.frequency.setValueAtTime(55,t+i*.14);
+    o.frequency.exponentialRampToValueAtTime(35,t+i*.14+.13);
+    g.gain.setValueAtTime(0,t+i*.14);
+    g.gain.linearRampToValueAtTime(.25,t+i*.14+.01);
+    g.gain.exponentialRampToValueAtTime(.01,t+i*.14+.16);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t+i*.14); o.stop(t+i*.14+.2);
+  }
+}
+function playSuccess(){ playBeep(1200,.15); setTimeout(()=>playBeep(1500,.2),150); }
+function playError(){ playBeep(180,.3); }
+
+// ═══════════════════════════════════════════════════════════════
+//  COLLISION
+// ═══════════════════════════════════════════════════════════════
+function resolveCollisions(pos, radius){
+  for (const c of colliders){
+    const cx = Math.max(c.minX, Math.min(pos.x, c.maxX));
+    const cz = Math.max(c.minZ, Math.min(pos.z, c.maxZ));
+    const dx = pos.x - cx, dz = pos.z - cz;
+    const d2 = dx*dx + dz*dz;
+    if (d2 < radius*radius){
+      const d = Math.sqrt(d2) || .0001;
+      const push = radius - d;
+      if (d > .001){
+        pos.x += (dx/d)*push;
+        pos.z += (dz/d)*push;
+      } else {
+        const l = pos.x - c.minX, r = c.maxX - pos.x;
+        const t = pos.z - c.minZ, b = c.maxZ - pos.z;
+        const m = Math.min(l,r,t,b);
+        if (m === l) pos.x = c.minX - radius;
+        else if (m === r) pos.x = c.maxX + radius;
+        else if (m === t) pos.z = c.minZ - radius;
+        else pos.z = c.maxZ + radius;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  A* PATHFINDING
+// ═══════════════════════════════════════════════════════════════
+const GRID_MIN = -14, GRID_SIZE = .5, GRID_N = 56;
+const walkable = [];
+
+function buildGrid(){
+  for (let i = 0; i < GRID_N; i++){
+    walkable[i] = [];
+    for (let j = 0; j < GRID_N; j++){
+      const x = GRID_MIN + (i+.5)*GRID_SIZE;
+      const z = GRID_MIN + (j+.5)*GRID_SIZE;
+      let blocked = false;
+      for (const c of colliders){
+        if (x > c.minX-.35 && x < c.maxX+.35 && z > c.minZ-.35 && z < c.maxZ+.35){
+          blocked = true; break;
+        }
+      }
+      walkable[i][j] = !blocked;
+    }
+  }
+}
+
+function aStar(sx,sz,gx,gz){
+  const si = Math.floor((sx-GRID_MIN)/GRID_SIZE);
+  const sj = Math.floor((sz-GRID_MIN)/GRID_SIZE);
+  const gi = Math.floor((gx-GRID_MIN)/GRID_SIZE);
+  const gj = Math.floor((gz-GRID_MIN)/GRID_SIZE);
+  if (si<0||si>=GRID_N||sj<0||sj>=GRID_N) return null;
+  if (gi<0||gi>=GRID_N||gj<0||gj>=GRID_N) return null;
+  if (!walkable[gi][gj]) return null;
+  
+  const key = (i,j)=>i*GRID_N+j;
+  const open = [{i:si,j:sj,g:0,f:0,parent:null}];
+  const closed = new Set();
+  
+  while (open.length > 0){
+    let best = 0;
+    for (let i = 1; i < open.length; i++) if (open[i].f < open[best].f) best = i;
+    const cur = open.splice(best,1)[0];
+    
+    if (cur.i === gi && cur.j === gj){
+      const path = [];
+      let n = cur;
+      while (n){
+        path.unshift(new THREE.Vector3(GRID_MIN+(n.i+.5)*GRID_SIZE, 0, GRID_MIN+(n.j+.5)*GRID_SIZE));
+        n = n.parent;
+      }
+      return path;
+    }
+    closed.add(key(cur.i, cur.j));
+    
+    for (const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
+      const ni = cur.i+di, nj = cur.j+dj;
+      if (ni<0||ni>=GRID_N||nj<0||nj>=GRID_N) continue;
+      if (!walkable[ni][nj]) continue;
+      if (closed.has(key(ni,nj))) continue;
+      if (di&&dj && (!walkable[cur.i+di][cur.j] || !walkable[cur.i][cur.j+dj])) continue;
+      
+      const g = cur.g + (di&&dj?1.414:1);
+      const h = Math.abs(ni-gi) + Math.abs(nj-gj);
+      const ex = open.find(o => o.i===ni && o.j===nj);
+      if (ex){ if (g < ex.g){ ex.g=g; ex.f=g+h; ex.parent=cur; } }
+      else open.push({i:ni,j:nj,g,f:g+h,parent:cur});
+    }
+  }
+  return null;
+}
+
+function lineOfSight(from, to){
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const dist = dir.length();
+  dir.normalize();
+  const steps = Math.ceil(dist/.3);
+  for (let i = 1; i < steps; i++){
+    const p = new THREE.Vector3().copy(from).addScaledVector(dir, (i/steps)*dist);
+    for (const c of colliders){
+      if (p.x > c.minX && p.x < c.maxX && p.z > c.minZ && p.z < c.maxZ) return false;
+    }
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI
+// ═══════════════════════════════════════════════════════════════
+const startScreen = document.getElementById('startScreen');
+const hud = document.getElementById('hud');
+const endScreen = document.getElementById('endScreen');
+const endTitle = document.getElementById('endTitle');
+const endSubtitle = document.getElementById('endSubtitle');
+const promptEl = document.getElementById('prompt');
+const msgEl = document.getElementById('msg');
+const bloodOverlay = document.getElementById('bloodOverlay');
+const jumpscareEl = document.getElementById('jumpscare');
+const staminaFill = document.getElementById('staminaFill');
+const dayText = document.getElementById('dayText');
+const diffTag = document.getElementById('diffTag');
+const notePopup = document.getElementById('notePopup');
+const safePopup = document.getElementById('safePopup');
+const safeDisplay = document.getElementById('safeDisplay');
+const noteText = document.getElementById('noteText');
+const noteCode = document.getElementById('noteCode');
+const noteSign = document.getElementById('noteSign');
+
+function showMsg(text, color='#ff3333', duration=2000){
+  msgEl.textContent = text;
+  msgEl.style.color = color;
+  msgEl.style.opacity = '1';
+  setTimeout(() => { msgEl.style.opacity = '0'; }, duration);
+}
+function showPrompt(text){ promptEl.textContent = text; promptEl.style.display = 'block'; }
+function hidePrompt(){ promptEl.style.display = 'none'; }
+
+function updateInventoryUI(){
+  for (const k of ['padlockKey','padlockCode','hammer','pliers','masterKey','battery','screwdriver','safeKey']){
+    const el = document.getElementById('inv' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.className = 'item' + (inventory[k] ? ' got' : '');
+  }
+}
+function updateDayUI(){
+  dayText.textContent = `DAY ${currentDay}`;
+  diffTag.textContent = DIFF.name;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DIFFICULTY + START
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.diffBtn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.diffBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    DIFF = DIFFS[btn.dataset.d];
+  });
+});
+
+document.getElementById('startHint').addEventListener('click', () => {
+  if (gameState !== 'menu') return;
+  initAudio();
+  startScreen.style.display = 'none';
+  hud.style.display = 'block';
+  gameState = 'playing';
+  currentDay = 1;
+  maxDays = 5;
+  resetHouse();
+  renderer.domElement.requestPointerLock();
+  buildGrid();
+  updateDayUI();
+  updateInventoryUI();
+  showMsg('🎯 استكشف المنزل واجمع المفاتيح', '#ffcc44', 4000);
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+function resetHouse(){
+  player.pos.set(-3, 1.7, 0);
+  player.yaw = -Math.PI/2;
+  player.pitch = 0;
+  player.stamina = 100;
+  player.currentHeight = 1.7;
+  grannyState.pos.set(-10, 0, -10);
+  grannyState.mode = 'patrol';
+  grannyState.path = null;
+  grannyState.wpIndex = 0;
+  granny.position.set(-10, 0, -10);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+let nearInteractable = null;
+
+function updateInteraction(){
+  if (gameState !== 'playing' || noteOpen || safeOpen) return;
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  raycaster.far = 3.5;
+  
+  const visibleCollectibles = collectibles.filter(c => c.visible);
+  const targets = [...visibleCollectibles, exitDoorGroup, safeGroup];
+  const hits = raycaster.intersectObjects(targets, true);
+  nearInteractable = null;
+  
+  if (hits.length > 0){
+    let found = null;
+    // أولوية للعناصر القابلة للجمع
+    for (const hit of hits){
+      let obj = hit.object;
+      while (obj){
+        if (obj.userData && obj.userData.isCollectible && obj.visible){ found = obj; break; }
+        obj = obj.parent;
+      }
+      if (found) break;
+    }
+    // ثم التفاعلات (باب/خزنة)
+    if (!found){
+      let obj = hits[0].object;
+      while (obj){
+        if (obj.userData && obj.userData.interactable === 'exit'){ found = exitDoorGroup; break; }
+        if (obj.userData && obj.userData.interactable === 'safe'){ found = safeGroup; break; }
+        if (obj === exitDoorGroup){ found = exitDoorGroup; break; }
+        if (obj === safeGroup){ found = safeGroup; break; }
+        obj = obj.parent;
+      }
+    }
+    
+    if (found){
+      nearInteractable = found;
+      if (found.userData && found.userData.isCollectible){
+        const t = found.userData.type;
+        if (t === 'key') showPrompt('[E] التقط المفتاح');
+        else if (t === 'note') showPrompt('[E] اقرأ الملاحظة');
+        else if (t === 'item') showPrompt('[E] التقط العنصر');
+      } else if (found === safeGroup){
+        if (inventory.safeOpened) showPrompt('🔓 الخزنة مفتوحة');
+        else if (!inventory.safeKey) showPrompt('🔐 تحتاج مفتاح الخزنة');
+        else showPrompt('[E] افتح الخزنة');
+      } else if (found === exitDoorGroup){
+        showPrompt(getDoorPrompt());
+      }
+    }
+  }
+  if (!nearInteractable) hidePrompt();
+}
+
+function getDoorPrompt(){
+  if (!inventory.plankRemoved && DIFF.locks.includes('plank'))
+    return inventory.hammer ? '[E] انزع اللوح بالمطرقة' : '🪵 تحتاج مطرقة';
+  if (!inventory.padlockRemoved && DIFF.locks.includes('padlock'))
+    return inventory.padlockKey ? '[E] افتح القفل بالمفتاح' : '🔒 تحتاج مفتاح القفل';
+  if (!inventory.numericRemoved && DIFF.locks.includes('numeric'))
+    return inventory.padlockCode ? '[E] أدخل كود القفل' : '🔢 تحتاج كود القفل';
+  if (!inventory.batteryRemoved && DIFF.locks.includes('battery'))
+    return inventory.battery ? '[E] ركّب البطارية' : '🔋 تحتاج بطارية';
+  if (!inventory.switchRemoved && DIFF.locks.includes('switch'))
+    return inventory.screwdriver ? '[E] افتح صندوق الطاقة' : '🪛 تحتاج مفك';
+  if (inventory.masterKey) return '[E] اهرب!';
+  return '🗝️ تحتاج المفتاح الرئيسي (من الخزنة)';
+}
+
+function tryInteract(){
+  if (!nearInteractable) return;
+
+  if (nearInteractable.userData && nearInteractable.userData.isCollectible){
+    const type = nearInteractable.userData.type;
+    const id = nearInteractable.userData.id;
+
+    if (type === 'key' || type === 'item'){
+      inventory[id] = true;
+      scene.remove(nearInteractable);
+      if (nearInteractable.userData.light) scene.remove(nearInteractable.userData.light);
+      const idx = collectibles.indexOf(nearInteractable);
+      if (idx >= 0) collectibles.splice(idx, 1);
+      playPickup();
+      updateInventoryUI();
+      showMsg(type === 'key' ? '🔑 مفتاح جديد!' : '📦 عنصر جديد!', '#ffd700', 1600);
+    } else if (type === 'note'){
+      inventory[id] = true;
+      scene.remove(nearInteractable);
+      if (nearInteractable.userData.light) scene.remove(nearInteractable.userData.light);
+      const idx = collectibles.indexOf(nearInteractable);
+      if (idx >= 0) collectibles.splice(idx, 1);
+      updateInventoryUI();
+      noteText.innerHTML = '"أخفيتُ المفتاح الرئيسي في خزانتي الحديدية...<br>الرقم هو <b>735</b>. لا تنساه أبداً."';
+      noteCode.textContent = '7 3 5';
+      noteSign.textContent = '"جراني"';
+      noteOpen = true;
+      notePopup.style.display = 'flex';
+      document.exitPointerLock();
+    }
+    nearInteractable = null;
+    return;
+  }
+
+  if (nearInteractable === safeGroup){
+    if (inventory.safeOpened){ showMsg('🔓 الخزنة مفتوحة بالفعل', '#aaa', 1500); return; }
+    if (!inventory.safeKey){ showMsg('🔐 تحتاج مفتاح الخزنة!', '#ff3333', 1800); return; }
+    safeOpen = true;
+    safeInput = '';
+    safeDisplay.textContent = '_ _ _';
+    safeDisplay.style.color = '#0f0';
+    safePopup.style.display = 'flex';
+    document.exitPointerLock();
+    return;
+  }
+
+  if (nearInteractable === exitDoorGroup){
+    handleExitDoor();
+    return;
+  }
+}
+
+function handleExitDoor(){
+  if (!inventory.plankRemoved && DIFF.locks.includes('plank')){
+    if (inventory.hammer){
+      inventory.plankRemoved = true;
+      lockPlank.visible = false;
+      playBeep(280, .2);
+      showMsg('🪵 نزعت اللوح!', '#ffaa00', 1800);
+    } else showMsg('🪵 تحتاج مطرقة!', '#ff3333', 1800);
+    return;
+  }
+  if (!inventory.padlockRemoved && DIFF.locks.includes('padlock')){
+    if (inventory.padlockKey){
+      inventory.padlockRemoved = true;
+      lockPadlock.visible = false;
+      playBeep(500, .15);
+      showMsg('🔓 فتحت القفل!', '#00ff88', 1800);
+    } else showMsg('🔒 تحتاج مفتاح القفل!', '#ff3333', 1800);
+    return;
+  }
+  if (!inventory.numericRemoved && DIFF.locks.includes('numeric')){
+    if (inventory.padlockCode){
+      inventory.numericRemoved = true;
+      lockNumeric.visible = false;
+      playBeep(600, .15);
+      showMsg('🔢 أدخلت الكود!', '#00ff88', 1800);
+    } else showMsg('🔢 تحتاج كود القفل (اقرأ الملاحظة)!', '#ff3333', 1800);
+    return;
+  }
+  if (!inventory.batteryRemoved && DIFF.locks.includes('battery')){
+    if (inventory.battery){
+      inventory.batteryRemoved = true;
+      lockBattery.visible = false;
+      playBeep(400, .15);
+      showMsg('🔋 ركّبت البطارية!', '#00ff88', 1800);
+    } else showMsg('🔋 تحتاج بطارية!', '#ff3333', 1800);
+    return;
+  }
+  if (!inventory.switchRemoved && DIFF.locks.includes('switch')){
+    if (inventory.screwdriver){
+      inventory.switchRemoved = true;
+      lockSwitch.visible = false;
+      playBeep(350, .2);
+      showMsg('🪛 فتحت الصندوق!', '#00ff88', 1800);
+    } else showMsg('🪛 تحتاج مفك!', '#ff3333', 1800);
+    return;
+  }
+  if (inventory.masterKey){
+    gameState = 'won';
+    exitDoorPanel.material.transparent = true;
+    let opacity = 1;
+    const fade = () => {
+      opacity -= .05;
+      exitDoorPanel.material.opacity = opacity;
+      if (opacity > 0) requestAnimationFrame(fade);
+    };
+    fade();
+    setTimeout(() => {
+      endTitle.textContent = '🎉 لقد هربت!';
+      endTitle.style.color = '#0f0';
+      endSubtitle.textContent = `نجوت من جراني في اليوم ${currentDay} من ${maxDays}.`;
+      endScreen.classList.add('win');
+      endScreen.style.display = 'flex';
+      document.exitPointerLock();
+    }, 1200);
+  } else showMsg('🗝️ تحتاج المفتاح الرئيسي (من الخزنة)!', '#ff3333', 1800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SAFE POPUP
+// ═══════════════════════════════════════════════════════════════
+window.safePress = (d) => {
+  if (safeInput.length < 3){
+    safeInput += d;
+    safeDisplay.textContent = safeInput.padEnd(3, '_').split('').join(' ');
+    playBeep(600, .05);
+    if (safeInput.length === 3) setTimeout(checkSafe, 350);
+  }
+};
+window.safeClear = () => { safeInput = ''; safeDisplay.textContent = '_ _ _'; playBeep(400, .08); };
+window.safeClose = () => {
+  safeOpen = false;
+  safePopup.style.display = 'none';
+  safeInput = '';
+  safeDisplay.textContent = '_ _ _';
+  if (gameState === 'playing') renderer.domElement.requestPointerLock();
+};
+window.closeNote = () => {
+  noteOpen = false;
+  notePopup.style.display = 'none';
+  if (gameState === 'playing') renderer.domElement.requestPointerLock();
+};
+
+function checkSafe(){
+  if (safeInput === '735'){
+    inventory.safeOpened = true;
+    playSuccess();
+    safeDisplay.textContent = '✓ ✓ ✓';
+    safeDisplay.style.color = '#0f0';
+    masterKey.visible = true;
+    masterKey.userData.light.visible = true;
+    setTimeout(() => {
+      safeClose();
+      showMsg('🔓 الخزنة فُتحت! خذ المفتاح الرئيسي', '#ffd700', 3500);
+    }, 800);
+  } else {
+    playError();
+    safeDisplay.textContent = '✗ ✗ ✗';
+    safeDisplay.style.color = '#f00';
+    setTimeout(() => {
+      safeInput = '';
+      safeDisplay.textContent = '_ _ _';
+      safeDisplay.style.color = '#0f0';
+    }, 1000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PLAYER UPDATE
+// ═══════════════════════════════════════════════════════════════
+let stepTimer = 0;
+function updatePlayer(dt){
+  let forward = 0, right = 0;
+  if (keys['KeyW']) forward += 1;
+  if (keys['KeyS']) forward -= 1;
+  if (keys['KeyD']) right += 1;
+  if (keys['KeyA']) right -= 1;
+  
+  const moving = forward !== 0 || right !== 0;
+  player.isCrouching = !!keys['ControlLeft'] || !!keys['KeyC'];
+  const canSprint = (keys['ShiftLeft'] || keys['ShiftRight']) && !player.isCrouching && moving && player.stamina > 1;
+  player.isSprinting = canSprint;
+  
+  if (canSprint) player.stamina = Math.max(0, player.stamina - 30*dt);
+  else player.stamina = Math.min(100, player.stamina + 18*dt);
+  staminaFill.style.width = player.stamina + '%';
+  
+  let speed = 3.0;
+  if (player.isCrouching) speed = 1.4;
+  else if (canSprint) speed = 5.5;
+  
+  const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
+  let dx = -sin*forward + cos*right;
+  let dz = -cos*forward - sin*right;
+  const len = Math.hypot(dx, dz);
+  if (len > 0){ dx /= len; dz /= len; }
+  
+  const newPos = player.pos.clone();
+  newPos.x += dx*speed*dt;
+  newPos.z += dz*speed*dt;
+  resolveCollisions(newPos, player.radius);
+  player.pos.x = newPos.x;
+  player.pos.z = newPos.z;
+  
+  const targetH = player.isCrouching ? player.crouchHeight : player.height;
+  player.currentHeight += (targetH - player.currentHeight) * Math.min(1, dt*10);
+  player.pos.y = player.currentHeight;
+  
+  if (moving){
+    player.bobPhase += dt * (canSprint ? 14 : player.isCrouching ? 6 : 10);
+    stepTimer -= dt;
+    if (stepTimer <= 0){ playFootstep(); stepTimer = canSprint ? .28 : .42; }
+  } else player.bobPhase *= .9;
+  
+  const bobY = Math.sin(player.bobPhase) * (canSprint ? .06 : .03);
+  camera.position.set(player.pos.x, player.pos.y + bobY, player.pos.z);
+  camera.quaternion.setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+  
+  if (flashlightOn){
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    flashlight.position.copy(camera.position);
+    flashlight.target.position.copy(camera.position).addScaledVector(dir, 10);
+    flashlight.target.updateMatrixWorld();
+    flashlight.intensity = flashlightBase * (.92 + Math.random()*.16);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GRANNY UPDATE
+// ═══════════════════════════════════════════════════════════════
+let grannyStepTimer = 0, lastBeatTime = 0;
+
+function updateGranny(dt){
+  if (DIFF.speed <= 0) return;
+  
+  const playerPos = player.pos.clone();
+  playerPos.y = 0;
+  const gp = grannyState.pos;
+  const distToPlayer = gp.distanceTo(playerPos);
+  
+  const canSee = distToPlayer < DIFF.vision && lineOfSight(
+    new THREE.Vector3(gp.x, 1.5, gp.z),
+    new THREE.Vector3(playerPos.x, 1.5, playerPos.z)
+  );
+  
+  let noiseRadius = 0;
+  if (player.isCrouching && (keys['KeyW']||keys['KeyA']||keys['KeyS']||keys['KeyD'])) noiseRadius = DIFF.hearing * .3;
+  else if (player.isSprinting) noiseRadius = DIFF.hearing * 1.2;
+  else if (keys['KeyW']||keys['KeyA']||keys['KeyS']||keys['KeyD']) noiseRadius = DIFF.hearing;
+  
+  const canHear = distToPlayer < noiseRadius && lineOfSight(
+    new THREE.Vector3(gp.x, 1.5, gp.z),
+    new THREE.Vector3(playerPos.x, 1.5, playerPos.z)
+  );
+  
+  if (canSee || canHear){
+    grannyState.mode = 'chase';
+    grannyState.lastSeenPlayer = performance.now() / 1000;
+    grannyState.lastKnownPlayerPos = playerPos.clone();
+  } else if (grannyState.mode === 'chase' && performance.now()/1000 - grannyState.lastSeenPlayer > 4){
+    grannyState.mode = 'investigate';
+  }
+  
+  let speed = DIFF.speed;
+  if (grannyState.mode === 'chase'){
+    speed = DIFF.chase;
+    grannyState.pathTimer -= dt;
+    if (grannyState.pathTimer <= 0 || !grannyState.path){
+      grannyState.path = aStar(gp.x, gp.z, grannyState.lastKnownPlayerPos.x, grannyState.lastKnownPlayerPos.z);
+      grannyState.pathTimer = .35;
+      if (grannyState.path && grannyState.path.length > 0) grannyState.path.shift();
+    }
+  } else if (grannyState.mode === 'investigate' && grannyState.lastKnownPlayerPos){
+    speed = DIFF.speed * 1.4;
+    if (gp.distanceTo(grannyState.lastKnownPlayerPos) < 1){
+      grannyState.mode = 'patrol';
+      grannyState.lastKnownPlayerPos = null;
+      grannyState.path = null;
+    } else {
+      grannyState.pathTimer -= dt;
+      if (grannyState.pathTimer <= 0 || !grannyState.path){
+        grannyState.path = aStar(gp.x, gp.z, grannyState.lastKnownPlayerPos.x, grannyState.lastKnownPlayerPos.z);
+        grannyState.pathTimer = .5;
+        if (grannyState.path && grannyState.path.length > 0) grannyState.path.shift();
+      }
+    }
+  } else {
+    const wp = grannyState.waypoints[grannyState.wpIndex];
+    if (gp.distanceTo(wp) < .8){
+      grannyState.wpIndex = (grannyState.wpIndex + 1) % grannyState.waypoints.length;
+      grannyState.path = null;
+    } else {
+      grannyState.pathTimer -= dt;
+      if (grannyState.pathTimer <= 0 || !grannyState.path){
+        grannyState.path = aStar(gp.x, gp.z, wp.x, wp.z);
+        grannyState.pathTimer = 1.5;
+        if (grannyState.path && grannyState.path.length > 0) grannyState.path.shift();
+      }
+    }
+  }
+  
+  if (grannyState.path && grannyState.path.length > 0){
+    const next = grannyState.path[0];
+    const dir = new THREE.Vector3(next.x - gp.x, 0, next.z - gp.z);
+    const d = dir.length();
+    if (d < .4) grannyState.path.shift();
+    else {
+      dir.normalize();
+      gp.x += dir.x * speed * dt;
+      gp.z += dir.z * speed * dt;
+      resolveCollisions(gp, .4);
+      const targetYaw = Math.atan2(dir.x, dir.z);
+      let diff = targetYaw - grannyState.yaw;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      grannyState.yaw += diff * Math.min(1, dt * 6);
+    }
+  }
+  
+  grannyStepTimer -= dt;
+  if (grannyStepTimer <= 0 && distToPlayer < 22){
+    playFootstep();
+    grannyStepTimer = grannyState.mode === 'chase' ? .35 : .55;
+  }
+  
+  grannyState.stepPhase += dt * (grannyState.mode === 'chase' ? 10 : 5);
+  granny.position.set(gp.x, Math.abs(Math.sin(grannyState.stepPhase)) * .05, gp.z);
+  granny.rotation.y = grannyState.yaw;
+  
+  grannyState.blinkTimer += dt;
+  granny.userData.eyeGlow.intensity = .5 * (.7 + Math.sin(grannyState.blinkTimer * 4) * .3);
+  
+  if (distToPlayer < 1.1 && gameState === 'playing') triggerCaught();
+  
+  const prox = Math.max(0, 1 - distToPlayer/16);
+  if (prox > .05){
+    bloodOverlay.style.opacity = (prox * .55).toString();
+    const now = performance.now();
+    if (now - lastBeatTime > 900 - prox*600 && prox > .25){
+      playHeartbeat();
+      lastBeatTime = now;
+    }
+  } else bloodOverlay.style.opacity = '0';
+}
+
+function triggerCaught(){
+  if (gameState !== 'playing') return;
+  gameState = 'dead';
+  playScream();
+  jumpscareEl.style.display = 'flex';
+  bloodOverlay.style.opacity = '.9';
+  document.exitPointerLock();
+  
+  const t0 = performance.now();
+  const startPos = camera.position.clone();
+  const grannyFace = new THREE.Vector3(granny.position.x, 1.95, granny.position.z);
+  
+  const zoomIn = () => {
+    const t = Math.min(1, (performance.now() - t0) / 900);
+    camera.position.lerpVectors(startPos, grannyFace.clone().add(new THREE.Vector3(0,0,.6)), t);
+    camera.lookAt(grannyFace);
+    if (t < 1) requestAnimationFrame(zoomIn);
+  };
+  zoomIn();
+  
+  setTimeout(() => {
+    jumpscareEl.style.display = 'none';
+    bloodOverlay.style.opacity = '0';
+    
+    if (currentDay >= maxDays){
+      endTitle.textContent = '💀 GAME OVER';
+      endTitle.style.color = '#a00';
+      endSubtitle.textContent = `لم تهرب خلال ${maxDays} أيام. جراني احتفظت بك للأبد.`;
+      endScreen.classList.add('lose');
+      endScreen.style.display = 'flex';
+    } else {
+      currentDay++;
+      resetHouse();
+      updateDayUI();
+      gameState = 'playing';
+      renderer.domElement.requestPointerLock();
+      showMsg(`☀️ DAY ${currentDay}`, '#88ccff', 2500);
+    }
+  }, 1400);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANIMATIONS
+// ═══════════════════════════════════════════════════════════════
+function animateCollectibles(t){
+  for (const c of collectibles){
+    if (!c.visible) continue;
+    c.rotation.y = t * 1.5;
+    if (c.userData.baseY !== undefined) c.position.y = c.userData.baseY + Math.sin(t*2.5)*.08;
+    if (c.userData.light && c.userData.light.visible){
+      c.userData.light.position.y = c.position.y + .1;
+      c.userData.light.intensity = .9 + Math.sin(t*4)*.25;
+    }
+  }
+}
+
+function flickerLamps(t){
+  for (let i = 0; i < lamps.length; i++){
+    lamps[i].intensity = lampBases[i] * (.9 + Math.sin(t*(6+i)+i)*.06 + Math.random()*.04);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
+let lastTime = performance.now(), elapsed = 0;
+
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt = Math.min((now - lastTime)/1000, .05);
+  lastTime = now;
+  elapsed += dt;
+  
+  if (gameState === 'playing'){
+    if (!noteOpen && !safeOpen){
+      updatePlayer(dt);
+      updateGranny(dt);
+      updateInteraction();
+    }
+    animateCollectibles(elapsed);
+    flickerLamps(elapsed);
+  } else if (gameState === 'dead' || gameState === 'won'){
+    animateCollectibles(elapsed);
+  } else {
+    camera.position.set(-3, 1.7, 0);
+    camera.lookAt(5, 1.7, 0);
+  }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+document.addEventListener('click', () => {
+  if (gameState === 'playing' && !pointerLocked && !noteOpen && !safeOpen){
+    renderer.domElement.requestPointerLock();
+  }
+});
+</script>
+
+</body>
+</html>
